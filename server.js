@@ -5,32 +5,64 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-let lastCommand = null;
-let paired = false;
+let state = {
+  power: true,
+  volume: 20,
+  channel: 5,
+};
 
-// Rota de pareamento
+let activeToken = null;
+
+// Pareamento
 app.post("/pair", (req, res) => {
-  paired = true;
-  console.log("TV PAREADA");
-  res.json({ success: true, message: "TV pareada com sucesso" });
+  const { code } = req.body;
+  if (!code || code.length !== 6) {
+    return res.json({ success: false, message: "Código inválido" });
+  }
+
+  activeToken = "token123";
+  console.log("📺 TV PAREADA");
+  res.json({ success: true, token: activeToken });
 });
 
-// Enviar comando para a TV
+// Enviar comandos
 app.post("/command", (req, res) => {
-  if (!paired) return res.status(400).json({ error: "TV não está pareada" });
+  const { token, command } = req.body;
 
-  const { command } = req.body;
-  lastCommand = command;
+  if (token !== activeToken) {
+    return res.json({ success: false, message: "Token inválido" });
+  }
 
-  console.log("Comando recebido:", command);
+  switch (command) {
+    case "power-toggle":
+      state.power = !state.power;
+      break;
+    case "volume-up":
+      state.volume++;
+      break;
+    case "volume-down":
+      state.volume--;
+      break;
+    case "channel-up":
+      state.channel++;
+      break;
+    case "channel-down":
+      state.channel--;
+      break;
+  }
 
-  res.json({ success: true });
+  console.log("▶️ Comando recebido:", command, "Estado atual:", state);
+  res.json({ success: true, state });
 });
 
-// TV busca o último comando
+// Estado da TV
 app.get("/state", (req, res) => {
-  res.json({ command: lastCommand });
-  lastCommand = null; // limpa depois de enviado
+  res.json(state);
+});
+
+// Rota opcional para testar
+app.get("/", (req, res) => {
+  res.send("Servidor TV Fake Online ✔");
 });
 
 // Porta do Render
